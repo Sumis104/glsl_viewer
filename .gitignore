@@ -3,4 +3,4 @@ __pycache__/
 build/
 dist/
 *.spec
-.DS_Store
+.DS_Storeimgui.ini
