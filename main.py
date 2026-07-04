@@ -3,8 +3,8 @@ import moderngl_window as mglw
 import sys
 from imgui_bundle import imgui
 from moderngl_window.integrations.imgui_bundle import ModernglWindowRenderer
-
 import moderngl
+import re
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = Path(sys._MEIPASS)   # PyInstaller展開先
@@ -22,17 +22,41 @@ void main() {
 }
 """
 
+def parse_metadata(source):
+    meta = {}
+    for line in source.splitlines():   # ← リスト手書きじゃなくファイル全文から
+        m = re.search(r'uniform\s+\w+\s+(\w+)', line)
+        if not m:
+            continue
+        name = m.group(1)
+
+        d = re.search(r'default:\s*([-\d.\s]+)', line)
+        nums = []
+        if d:
+            nums = [float(x) for x in re.findall(r'[-\d.]+', d.group(1))]
+
+        # ここから追加: range対応
+        r = re.search(r'range:\s*([-\d.]+)\s+([-\d.]+)', line)
+        range_val = None
+        if r:
+            range_val = (float(r.group(1)), float(r.group(2)))
+
+        meta[name] = {"default": nums, "range": range_val}
+    return meta
+
+
 class App(mglw.WindowConfig):
     gl_version = (4, 1)
     title = "GLSL Viewer"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        frag_path = BASE_DIR / "shaders" / "test.frag"
-        frag_source = frag_path.read_text()
+        self.frag_path = BASE_DIR / "shaders" / "test.frag"
+        self.frag_source = self.frag_path.read_text()
+        self.last_mtime = self.frag_path.stat().st_mtime
         self.program = self.ctx.program(
             vertex_shader=VERTEX_SHADER,
-            fragment_shader=frag_source,
+            fragment_shader=self.frag_source,
         )
         self.quad = mglw.geometry.quad_fs()
         imgui.create_context()
@@ -44,41 +68,85 @@ class App(mglw.WindowConfig):
             if isinstance(member, moderngl.Uniform):
                 print(name, member, member.fmt)
         self.build_uniforms()
+        
+    def reload_shader(self):
+        try:
+            source = self.frag_path.read_text()
+            program = self.ctx.program(
+                vertex_shader=VERTEX_SHADER,
+                fragment_shader=source,
+            )
+        except Exception as e:
+            print("COMPILE ERROR:", e)
+            return
+        self.frag_source = source
+        self.program = program
+        self.build_uniforms()
     
     def build_uniforms(self):
-        self.uniforms = {} 
+        meta = parse_metadata(self.frag_source)      # ★追加1: パース結果を先に取っておく
+        self.uniforms = {}
         for name in self.program:
             member = self.program[name]
             if isinstance(member, moderngl.Uniform):
-                if name in{"u_time", "u_resolution"}:
+                if name in {"u_time", "u_resolution"}:
                     continue
-                self.uniforms[name] = {   
-                    "fmt": member.fmt,
-                    "value": member.value,
+                info = {                              # ★変更: 辞書に一旦名前をつける
+                "fmt": member.fmt,
+                "value": member.value,
                 }
+                if name in meta:                      # ★追加2: metaにこの名前があれば上書き
+                    nums = meta[name]["default"]
+                    if len(nums) == 1:
+                        if info["fmt"] == "1i":
+                            info["value"] = int(nums[0])
+                        else:
+                            info["value"] = nums[0]
+                    elif len(nums) > 1:
+                        info["value"] = tuple(nums)
+                    if meta[name]["range"]:
+                        info["range"] = meta[name]["range"]
+                self.uniforms[name] = info            # ★最後にinfoを登録
+
 
     def draw_ui(self):
-        for name, info in self.uniforms.items():   # キーと値を同時に取り出す
+        for name, info in self.uniforms.items():
             if info["fmt"] == "3f":
                 changed, new_value = imgui.color_edit3(name, info["value"])
                 info["value"] = new_value
             elif info["fmt"] == "1f":
-                changed, new_value = imgui.slider_float(name, info["value"], 0.0, 1.0)
+                lo, hi = info.get("range", (0.0, 1.0))
+                changed, new_value = imgui.slider_float(name, info["value"], lo, hi)
                 info["value"] = new_value
+            elif info["fmt"] == "2f":
+                lo, hi = info.get("range", (0.0, 1.0))
+                changed, new_value = imgui.slider_float2(name, info["value"], lo, hi)
+                info["value"] = tuple(new_value)
+            elif info["fmt"] == "1i":
+                lo, hi = info.get("range", (0, 10))
+                changed, new_value = imgui.slider_int(name, info["value"], int(lo), int(hi))
+                info["value"] = new_value
+
 
     def apply_uniforms(self):
         for name, info in self.uniforms.items():
             self.program[name].value = info["value"]
 
     def on_render(self, time, frametime):
+        mtime = self.frag_path.stat().st_mtime
+        if mtime != self.last_mtime:
+            self.last_mtime = mtime
+            self.reload_shader()
         self.ctx.clear(0.0, 0.0, 0.0)
-        self.apply_uniforms()               # 台帳→GPU
+        self.apply_uniforms()       
+        if "u_time" in self.program:
+            self.program["u_time"].value = time       
         self.quad.render(self.program)
         imgui.new_frame()
         if self.show_ui:
             imgui.begin("Controls")
-        self.draw_ui()                  # 台帳→GUI→台帳
-        imgui.end()
+            self.draw_ui()               
+            imgui.end()
         imgui.render()
         self.imgui.render(imgui.get_draw_data())
     
@@ -108,7 +176,6 @@ class App(mglw.WindowConfig):
     def on_unicode_char_entered(self, char):
         self.imgui.unicode_char_entered(char)
 
-    
 
 
 if __name__ == "__main__":

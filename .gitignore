@@ -5,3 +5,4 @@ dist/
 *.spec
 .DS_Store
 imgui.ini
+tempCodeRunnerFile.py
