@@ -5,11 +5,16 @@ from imgui_bundle import imgui
 from moderngl_window.integrations.imgui_bundle import ModernglWindowRenderer
 import moderngl
 import re
+import shutil  
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = Path(sys._MEIPASS)   # PyInstaller展開先
 else:
     BASE_DIR = Path(__file__).parent
+USER_DIR = Path.home() / "Documents" / "GLSLViewer" / "shaders"
+if not USER_DIR.exists():
+    USER_DIR.mkdir(parents=True)
+    shutil.copy(BASE_DIR / "shaders" / "test.frag", USER_DIR / "test.frag")
 
 VERTEX_SHADER = """
 #version 410
@@ -51,7 +56,9 @@ class App(mglw.WindowConfig):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.frag_path = BASE_DIR / "shaders" / "test.frag"
+        self.frag_path = USER_DIR / "test.frag"
+        self.shader_files = sorted(USER_DIR.glob("*.frag"))
+        self.current_index = 0
         self.frag_source = self.frag_path.read_text()
         self.last_mtime = self.frag_path.stat().st_mtime
         self.program = self.ctx.program(
@@ -60,8 +67,12 @@ class App(mglw.WindowConfig):
         )
         self.quad = mglw.geometry.quad_fs()
         imgui.create_context()
+        print("window:", self.wnd.size)
+        print("buffer:", self.wnd.buffer_size)
         imgui.get_io().font_global_scale = 2.25
         self.imgui = ModernglWindowRenderer(self.wnd)
+        self.ini_path = str(USER_DIR.parent / "imgui.ini")
+        imgui.get_io().set_ini_filename(self.ini_path)
         self.show_ui = True
         for name in self.program:
             member = self.program[name]
@@ -110,6 +121,14 @@ class App(mglw.WindowConfig):
 
 
     def draw_ui(self):
+        names = [f.name for f in self.shader_files]
+        changed, self.current_index = imgui.combo("shader", self.current_index, names)
+        if changed:
+            self.frag_path = self.shader_files[self.current_index]
+            self.last_mtime = self.frag_path.stat().st_mtime
+            self.reload_shader()
+        if imgui.button("Rescan"):                                   
+            self.shader_files = sorted(USER_DIR.glob("*.frag"))
         for name, info in self.uniforms.items():
             if info["fmt"] == "3f":
                 changed, new_value = imgui.color_edit3(name, info["value"])
@@ -144,6 +163,7 @@ class App(mglw.WindowConfig):
         self.quad.render(self.program)
         imgui.new_frame()
         if self.show_ui:
+            imgui.set_next_window_size((400, 500), imgui.Cond_.first_use_ever)
             imgui.begin("Controls")
             self.draw_ui()               
             imgui.end()
