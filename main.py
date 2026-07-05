@@ -67,8 +67,6 @@ class App(mglw.WindowConfig):
         )
         self.quad = mglw.geometry.quad_fs()
         imgui.create_context()
-        print("window:", self.wnd.size)
-        print("buffer:", self.wnd.buffer_size)
         imgui.get_io().font_global_scale = 2.25
         self.imgui = ModernglWindowRenderer(self.wnd)
         self.ini_path = str(USER_DIR.parent / "imgui.ini")
@@ -175,8 +173,12 @@ class App(mglw.WindowConfig):
 
     def on_key_event(self, key, action, modifiers):
         self.imgui.key_event(key, action, modifiers)
+        if imgui.get_io().want_capture_keyboard:
+            return
         if action == self.wnd.keys.ACTION_PRESS and key == self.wnd.keys.TAB:
             self.show_ui = not self.show_ui
+        if action == self.wnd.keys.ACTION_PRESS and key == self.wnd.keys.F and modifiers.ctrl:
+            self.wnd.fullscreen = not self.wnd.fullscreen
 
     def on_mouse_position_event(self, x, y, dx, dy):
         self.imgui.mouse_position_event(x, y, dx, dy)
