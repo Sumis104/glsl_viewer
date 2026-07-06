@@ -9,12 +9,13 @@ from shader_meta import parse_metadata
 class App(mglw.WindowConfig):
     gl_version = (4, 1)
     title = "GLSL Viewer"
+    aspect_ratio = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.frag_path = USER_DIR / "test.frag"
         self.shader_files = sorted(USER_DIR.glob("*.frag"))
         self.current_index = 0
+        self.frag_path = self.shader_files[self.current_index]
         self.frag_source = self.frag_path.read_text()
         self.last_mtime = self.frag_path.stat().st_mtime
         self.program = self.ctx.program(
@@ -113,7 +114,9 @@ class App(mglw.WindowConfig):
         self.ctx.clear(0.0, 0.0, 0.0)
         self.apply_uniforms()       
         if "u_time" in self.program:
-            self.program["u_time"].value = time       
+            self.program["u_time"].value = time
+        if "u_resolution" in self.program:
+            self.program["u_resolution"].value = self.wnd.buffer_size           
         self.quad.render(self.program)
         imgui.new_frame()
         if self.show_ui:
@@ -125,6 +128,7 @@ class App(mglw.WindowConfig):
         self.imgui.render(imgui.get_draw_data())
     
     def on_resize(self, width: int, height: int):
+        self.ctx.viewport = (0, 0, *self.wnd.buffer_size)
         self.imgui.resize(width, height)
 
     def on_key_event(self, key, action, modifiers):
