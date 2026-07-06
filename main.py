@@ -1,54 +1,10 @@
 from pathlib import Path
 import moderngl_window as mglw
-import sys
 from imgui_bundle import imgui
 from moderngl_window.integrations.imgui_bundle import ModernglWindowRenderer
 import moderngl
-import re
-import shutil  
-
-if getattr(sys, 'frozen', False):
-    BASE_DIR = Path(sys._MEIPASS)   # PyInstaller展開先
-else:
-    BASE_DIR = Path(__file__).parent
-USER_DIR = Path.home() / "Documents" / "GLSLViewer" / "shaders"
-if not USER_DIR.exists():
-    USER_DIR.mkdir(parents=True)
-    shutil.copy(BASE_DIR / "shaders" / "test.frag", USER_DIR / "test.frag")
-
-VERTEX_SHADER = """
-#version 410
-in vec3 in_position;
-in vec2 in_texcoord_0;
-out vec2 v_uv;
-void main() {
-    gl_Position = vec4(in_position, 1.0);
-    v_uv = in_texcoord_0;
-}
-"""
-
-def parse_metadata(source):
-    meta = {}
-    for line in source.splitlines():   # ← リスト手書きじゃなくファイル全文から
-        m = re.search(r'uniform\s+\w+\s+(\w+)', line)
-        if not m:
-            continue
-        name = m.group(1)
-
-        d = re.search(r'default:\s*([-\d.\s]+)', line)
-        nums = []
-        if d:
-            nums = [float(x) for x in re.findall(r'[-\d.]+', d.group(1))]
-
-        # ここから追加: range対応
-        r = re.search(r'range:\s*([-\d.]+)\s+([-\d.]+)', line)
-        range_val = None
-        if r:
-            range_val = (float(r.group(1)), float(r.group(2)))
-
-        meta[name] = {"default": nums, "range": range_val}
-    return meta
-
+from constants import BASE_DIR,USER_DIR, VERTEX_SHADER
+from shader_meta import parse_metadata
 
 class App(mglw.WindowConfig):
     gl_version = (4, 1)
