@@ -43,6 +43,7 @@ class App(mglw.WindowConfig):
         self.real_time = 0.0
         self.toast_message = ""
         self.toast_until = 0.0
+        self.swap_buffer = None
         self.build_uniforms()
         
         
@@ -71,7 +72,7 @@ class App(mglw.WindowConfig):
         path = out_dir / f"shot_{datetime.now():%Y%m%d_%H%M%S}.png"
         img.save(path)
         self.toast_message = f"saved: {path.name}"
-        self.toast_until = self.my_time + 3.0
+        self.toast_until = self.real_time + 3.0
         print("saved:", path)
     
     def build_uniforms(self):
@@ -109,6 +110,7 @@ class App(mglw.WindowConfig):
             self.frag_path = self.shader_files[self.current_index]
             self.last_mtime = self.frag_path.stat().st_mtime
             self.reload_shader()
+            self.swap_buffer = None
         if imgui.button("Rescan"):                                   
             self.shader_files = sorted(USER_DIR.glob("*.frag"))
         imgui.same_line()
@@ -134,10 +136,23 @@ class App(mglw.WindowConfig):
                             value = tuple(value)
                         self.uniforms[name]["value"] = value
                 self.toast_message = f"loaded: {path.name}"
-                self.toast_until = self.real_time + 3.0
             else:
                 self.toast_message = f"no snapshot: {path.name}"
-                self.toast_until = self.real_time + 3.0
+            self.toast_until = self.real_time + 3.0
+        imgui.same_line()
+        if imgui.button("swap"):
+            current = {name: info["value"] for name, info in self.uniforms.items()}
+            if self.swap_buffer is not None:
+                for name, value in self.swap_buffer.items():
+                    if name in self.uniforms:
+                        if isinstance(value, list):
+                            value = tuple(value)
+                        self.uniforms[name]["value"] = value
+                self.toast_message = "swapped"
+            else:
+                self.toast_message = "stored (press again to swap)"
+            self.toast_until = self.real_time + 3.0
+            self.swap_buffer = current
         imgui.text(f"FPS: {imgui.get_io().framerate:.1f}")
         for name, info in self.uniforms.items():
             if info["fmt"] == "3f":
