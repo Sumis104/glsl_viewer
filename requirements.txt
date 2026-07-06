@@ -1,5 +1,6 @@
 altgraph==0.17.5
 annotated-types==0.7.0
+cffi==2.0.0
 glcontext==3.0.0
 glfw==2.10.0
 imgui-bundle==1.6.2
@@ -10,6 +11,7 @@ munch==4.0.0
 numpy==2.5.0
 packaging==26.2
 pillow==12.3.0
+pycparser==3.0
 pydantic==2.13.4
 pydantic_core==2.46.4
 pyglet==2.1.15
@@ -18,5 +20,6 @@ pyinstaller==6.21.0
 pyinstaller-hooks-contrib==2026.6
 PyOpenGL==3.1.10
 setuptools==82.0.1
+sounddevice==0.5.5
 typing-inspection==0.4.2
 typing_extensions==4.16.0

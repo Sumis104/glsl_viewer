@@ -8,6 +8,9 @@ from shader_meta import parse_metadata
 from PIL import Image
 from datetime import datetime
 import json
+from sources import TimeSource
+from sources import AudioSource
+
 
 class App(mglw.WindowConfig):
     gl_version = (4, 1)
@@ -44,8 +47,9 @@ class App(mglw.WindowConfig):
         self.toast_message = ""
         self.toast_until = 0.0
         self.swap_buffer = None
+        self.sources = [TimeSource(self)]
+        self.audio_source = AudioSource()
         self.build_uniforms()
-        
         
     def reload_shader(self):
         try:
@@ -186,8 +190,10 @@ class App(mglw.WindowConfig):
             self.reload_shader()
         self.ctx.clear(0.0, 0.0, 0.0)
         self.apply_uniforms()       
-        if "u_time" in self.program:
-            self.program["u_time"].value = self.my_time
+        for source in self.sources:
+            for name, value in source.get_values().items():
+                if name in self.program:
+                    self.program[name].value = value
         if "u_resolution" in self.program:
             self.program["u_resolution"].value = self.wnd.buffer_size           
         self.quad.render(self.program)
