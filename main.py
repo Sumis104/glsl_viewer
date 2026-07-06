@@ -33,7 +33,11 @@ class App(mglw.WindowConfig):
             member = self.program[name]
             if isinstance(member, moderngl.Uniform):
                 print(name, member, member.fmt)
+        self.my_time = 0.0
+        self.time_speed = 1.0
+        self.paused = False
         self.build_uniforms()
+        
         
     def reload_shader(self):
         try:
@@ -84,6 +88,11 @@ class App(mglw.WindowConfig):
             self.reload_shader()
         if imgui.button("Rescan"):                                   
             self.shader_files = sorted(USER_DIR.glob("*.frag"))
+        _, self.paused = imgui.checkbox("pause", self.paused)
+        imgui.same_line()
+        if imgui.button("reset"):
+            self.my_time = 0.0
+        _, self.time_speed = imgui.slider_float("speed", self.time_speed, 0.0, 3.0)
         for name, info in self.uniforms.items():
             if info["fmt"] == "3f":
                 changed, new_value = imgui.color_edit3(name, info["value"])
@@ -107,6 +116,8 @@ class App(mglw.WindowConfig):
             self.program[name].value = info["value"]
 
     def on_render(self, time, frametime):
+        if not self.paused:
+            self.my_time += frametime * self.time_speed
         mtime = self.frag_path.stat().st_mtime
         if mtime != self.last_mtime:
             self.last_mtime = mtime
@@ -114,7 +125,7 @@ class App(mglw.WindowConfig):
         self.ctx.clear(0.0, 0.0, 0.0)
         self.apply_uniforms()       
         if "u_time" in self.program:
-            self.program["u_time"].value = time
+            self.program["u_time"].value = self.my_time
         if "u_resolution" in self.program:
             self.program["u_resolution"].value = self.wnd.buffer_size           
         self.quad.render(self.program)
