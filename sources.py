@@ -29,6 +29,7 @@ class AudioSource:
         self.bass = min(bass / 10.0, 1.0)
         self.mid = min(mid / 10.0, 1.0)
         self.high = min(high / 10.0, 1.0)
+        
 
     def get_values(self):
         return {"u_bass": self.bass, "u_mid": self.mid, "u_high": self.high}

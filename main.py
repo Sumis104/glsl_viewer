@@ -47,8 +47,7 @@ class App(mglw.WindowConfig):
         self.toast_message = ""
         self.toast_until = 0.0
         self.swap_buffer = None
-        self.sources = [TimeSource(self)]
-        self.audio_source = AudioSource()
+        self.sources = [TimeSource(self), AudioSource()]
         self.build_uniforms()
         
     def reload_shader(self):
