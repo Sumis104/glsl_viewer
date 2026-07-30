@@ -86,9 +86,11 @@ class App(mglw.WindowConfig):
             if isinstance(member, moderngl.Uniform):
                 if name in {"u_time", "u_resolution"}:
                     continue
-                info = {                              # ★変更: 辞書に一旦名前をつける
+                info = {
                 "fmt": member.fmt,
                 "value": member.value,
+                "route": "slider",
+                "locked": False,
                 }
                 if name in meta:                      # ★追加2: metaにこの名前があれば上書き
                     nums = meta[name]["default"]
@@ -114,7 +116,7 @@ class App(mglw.WindowConfig):
             self.last_mtime = self.frag_path.stat().st_mtime
             self.reload_shader()
             self.swap_buffer = None
-        if imgui.button("Rescan"):                                   
+        if imgui.button("Rescan"):
             self.shader_files = sorted(USER_DIR.glob("*.frag"))
         imgui.same_line()
         if imgui.button("Open Folder"):
@@ -158,6 +160,17 @@ class App(mglw.WindowConfig):
             self.swap_buffer = current
         imgui.text(f"FPS: {imgui.get_io().framerate:.1f}")
         for name, info in self.uniforms.items():
+            _, info["locked"] = imgui.checkbox(f"lock##{name}", info["locked"])
+            imgui.same_line()
+            if info["fmt"] == "1f":
+                options = ["slider", "bass", "mid", "high"]
+            else:
+                options = ["slider"]
+            current_route = options.index(info["route"])
+            changed_route, current_route = imgui.combo(f"route##{name}", current_route, options)
+            if changed_route:
+                info["route"] = options[current_route]
+            imgui.same_line()
             if info["fmt"] == "3f":
                 changed, new_value = imgui.color_edit3(name, info["value"])
                 info["value"] = new_value
@@ -188,19 +201,28 @@ class App(mglw.WindowConfig):
             self.last_mtime = mtime
             self.reload_shader()
         self.ctx.clear(0.0, 0.0, 0.0)
-        self.apply_uniforms()       
+
+        route_map = {"bass": "u_bass", "mid": "u_mid", "high": "u_high"}
+        source_values = {}
         for source in self.sources:
-            for name, value in source.get_values().items():
-                if name in self.program:
-                    self.program[name].value = value
+            source_values.update(source.get_values())
+
+        for name, info in self.uniforms.items():
+            if info["locked"]:
+                continue
+            if info["route"] != "slider":
+                uniform_name = route_map[info["route"]]
+                info["value"] = source_values.get(uniform_name, info["value"])
+
+        self.apply_uniforms()
         if "u_resolution" in self.program:
-            self.program["u_resolution"].value = self.wnd.buffer_size           
+            self.program["u_resolution"].value = self.wnd.buffer_size
         self.quad.render(self.program)
         imgui.new_frame()
         if self.show_ui:
             imgui.set_next_window_size((400, 500), imgui.Cond_.first_use_ever)
             imgui.begin("Controls")
-            self.draw_ui()               
+            self.draw_ui()
             imgui.end()
         if self.real_time < self.toast_until:
             imgui.set_next_window_pos((self.wnd.size[0] - 20, self.wnd.size[1] - 20), imgui.Cond_.always, (1.0, 1.0))

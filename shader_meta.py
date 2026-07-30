@@ -2,7 +2,7 @@ import re
 
 def parse_metadata(source):
     meta = {}
-    for line in source.splitlines():   # ← リスト手書きじゃなくファイル全文から
+    for line in source.splitlines(): 
         m = re.search(r'uniform\s+\w+\s+(\w+)', line)
         if not m:
             continue
@@ -13,7 +13,7 @@ def parse_metadata(source):
         if d:
             nums = [float(x) for x in re.findall(r'[-\d.]+', d.group(1))]
 
-        # ここから追加: range対応
+        
         r = re.search(r'range:\s*([-\d.]+)\s+([-\d.]+)', line)
         range_val = None
         if r:
