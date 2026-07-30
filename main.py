@@ -215,12 +215,14 @@ class App(mglw.WindowConfig):
                 info["value"] = source_values.get(uniform_name, info["value"])
 
         self.apply_uniforms()
+        if "u_time" in self.program:
+            self.program["u_time"].value = self.my_time
         if "u_resolution" in self.program:
             self.program["u_resolution"].value = self.wnd.buffer_size
         self.quad.render(self.program)
         imgui.new_frame()
         if self.show_ui:
-            imgui.set_next_window_size((400, 500), imgui.Cond_.first_use_ever)
+            imgui.set_next_window_size((550, 600), imgui.Cond_.first_use_ever)
             imgui.begin("Controls")
             self.draw_ui()
             imgui.end()
