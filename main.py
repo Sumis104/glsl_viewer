@@ -167,12 +167,16 @@ class App(mglw.WindowConfig):
             else:
                 options = ["slider"]
             current_route = options.index(info["route"])
+            imgui.set_next_item_width(100)
             changed_route, current_route = imgui.combo(f"route##{name}", current_route, options)
             if changed_route:
                 info["route"] = options[current_route]
             imgui.same_line()
             if info["fmt"] == "3f":
-                changed, new_value = imgui.color_edit3(name, info["value"])
+                changed, new_value = imgui.color_edit3(
+                    name, info["value"],
+                    flags=imgui.ColorEditFlags_.no_inputs
+                )
                 info["value"] = new_value
             elif info["fmt"] == "1f":
                 lo, hi = info.get("range", (0.0, 1.0))
